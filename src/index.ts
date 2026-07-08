@@ -18,10 +18,7 @@ const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 // Support either a single CORS_ORIGIN (back-compat) or a comma-separated
 // ALLOWED_ORIGINS list for multiple environments (e.g. prod + staging).
-const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN)
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") ?? [];
 
 async function main() {
   const app = express();
@@ -37,8 +34,7 @@ async function main() {
 
   app.use(
     cors({
-      origin(origin, callback) {
-        // Allow no-origin requests (curl, server-to-server health checks).
+      origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
