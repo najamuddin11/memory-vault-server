@@ -18,11 +18,7 @@ const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 // Support either a single CORS_ORIGIN (back-compat) or a comma-separated
 // ALLOWED_ORIGINS list for multiple environments (e.g. prod + staging).
-const allowedOrigins = (
-  process.env.ALLOWED_ORIGINS ??
-  process.env.CORS_ORIGIN ??
-  "http://localhost:5174"
-)
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN)
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);

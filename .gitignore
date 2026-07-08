@@ -7,7 +7,6 @@ dist/
 # env files (real secrets — never commit these)
 .env
 .env.*
-!.env.example
 
 # prisma
 # (migrations SHOULD be committed — only ignore local dev db files if you add sqlite later)
