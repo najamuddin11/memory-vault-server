@@ -111,12 +111,15 @@ export const resolvers = {
       // 1. Validate & sanitize input shape/lengths before anything else.
       const parsed = contactMessageSchema.safeParse(input);
       if (!parsed.success) {
-        throw new GraphQLError(
-          parsed.error.errors[0]?.message ?? "Invalid input",
-          {
-            extensions: { code: "BAD_USER_INPUT" },
-          },
-        );
+        const validationErrors: Record<string, string> = {};
+        for (const issue of parsed.error.errors) {
+          const field = issue.path[0] as string;
+          if (field && !validationErrors[field])
+            validationErrors[field] = issue.message;
+        }
+        throw new GraphQLError("Validation failed", {
+          extensions: { code: "BAD_USER_INPUT", validationErrors },
+        });
       }
       const data = parsed.data;
 
