@@ -1,0 +1,25 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "us-central1-docker.pkg.dev/memory-vault-501900/cloud-run-source-deploy/memory-vault-backend",
+        ".",
+      ]
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "us-central1-docker.pkg.dev/memory-vault-501900/cloud-run-source-deploy/memory-vault-backend",
+      ]
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "memory-vault-backend"
+      - "--image=us-central1-docker.pkg.dev/memory-vault-501900/cloud-run-source-deploy/memory-vault-backend"
+      - "--region=us-central1"
+images:
+  - "us-central1-docker.pkg.dev/memory-vault-501900/cloud-run-source-deploy/memory-vault-backend"
