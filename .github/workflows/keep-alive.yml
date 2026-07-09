@@ -1,3 +1,4 @@
+# keep-alive
 name: Keep backend warm
 on:
   schedule:
