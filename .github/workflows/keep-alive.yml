@@ -1,4 +1,3 @@
-cat > /Users/najamuddin/workspace/memory-vault/memory-vault-server/.github/workflows/keep-alive.yml << 'EOF'
 name: Keep backend warm
 on:
   schedule:
@@ -10,4 +9,3 @@ jobs:
     steps:
       - name: Ping health endpoint
         run: curl -f https://memory-vault-server-qi1z.onrender.com/health || exit 0
-EOF
