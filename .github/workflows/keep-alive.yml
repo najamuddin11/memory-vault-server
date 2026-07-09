@@ -1,0 +1,15 @@
+cat > .github/workflows/keep-alive.yml << 'EOF'
+name: Keep backend warm
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: curl -f https://memory-vault-server-qi1z.onrender.com/health || exit 0
+EOF
