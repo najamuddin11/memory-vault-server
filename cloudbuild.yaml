@@ -23,3 +23,5 @@ steps:
       - "--region=us-central1"
 images:
   - "us-central1-docker.pkg.dev/memory-vault-501900/cloud-run-source-deploy/memory-vault-backend"
+
+  # trigger test $(date)
