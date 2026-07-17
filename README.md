@@ -1,15 +1,66 @@
-# Portfolio Backend — Express + PostgreSQL + Prisma + GraphQL
+# Portfolio Backend
 
-This is the backend for the portfolio site. It serves one main GraphQL query
-(`homeData`) that returns everything the home page needs (services,
-portfolio projects, work experience, education, skills, testimonials,
-contact info), plus a `sendMessage` mutation for the contact form.
+A GraphQL API for a developer portfolio site — one `homeData` query that returns everything the home page needs (services, projects, work experience, education, skills, testimonials, contact info), plus a `sendMessage` mutation for the contact form, with multiple layers of abuse protection baked in.
+
+Pair it with the frontend as a full-stack template, or borrow individual pieces (the Prisma schema, the CSRF/rate-limit/honeypot stack, the image-URL indirection, etc.) for another project.
+
+## Tech stack
+
+- **Express** + **TypeScript**
+- **Apollo Server** for the GraphQL layer
+- **Prisma** as the ORM, **PostgreSQL** as the database
+- **Zod** for input validation
+- **Helmet**, **CORS whitelist**, **express-rate-limit** for baseline hardening
+- **Nodemailer** for contact-form email delivery
+- **Docker Compose** for a local Postgres + pgAdmin setup
+
+## Prerequisites
+
+- Node.js 20+
+- Docker Desktop (or `docker` + `docker compose` on Linux) — used to run Postgres locally, see below
+
+## Getting started
+
+```bash
+git clone <this-repo-url>
+cd backend
+npm install
+# create a .env file with the variables listed below, then:
+docker compose up -d
+npx prisma migrate dev --name init
+npm run seed
+npm run dev
+```
+
+Other scripts:
+
+| Command                   | What it does                           |
+| ------------------------- | -------------------------------------- |
+| `npm run dev`             | Start the dev server (`tsx watch`)     |
+| `npm run build`           | Type-check and compile to `dist/`      |
+| `npm run start`           | Run the compiled build                 |
+| `npm run seed`            | Seed the database from `sql/seed.sql`  |
+| `npm run prisma:generate` | Regenerate the Prisma client           |
+| `npm run prisma:migrate`  | Create/apply a Prisma migration        |
+| `npm run prisma:studio`   | Open Prisma Studio (visual DB browser) |
+
+## Environment variables
+
+Create a `.env` file in the project root and set:
+
+| Variable           | Required | Description                                                                                      |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`     | Yes      | Postgres connection string, e.g. `postgresql://user:pass@localhost:5432/portfolio?schema=public` |
+| `IMAGE_BASE_URL`   | Yes      | Base URL prepended to every image/icon filename stored in the DB (e.g. an R2/S3 bucket URL)      |
+| `ALLOWED_ORIGINS`  | Yes      | Comma-separated list of origins allowed to call the API (CORS whitelist)                         |
+| `CSRF_SECRET`      | Yes      | Signing secret for the stateless CSRF token issued at `GET /csrf-token`                          |
+| `CONTACT_TO_EMAIL` | Yes      | Inbox address that contact-form submissions are forwarded to                                     |
+| `RECAPTCHA_SECRET` | No       | reCAPTCHA v3 server-side secret; if unset, that check is skipped with a warning                  |
 
 Image fields (`Portfolio.image`, `Portfolio.projectLogo`,
 `CarouselItem.img`) are stored in the database as **filenames only**
 (e.g. `"portfolio/cardo/cover.png"`). The GraphQL layer prepends
-`IMAGE_BASE_URL` (from `.env`) before sending them to the frontend. That
-means moving images to S3 later is a one-line change — see
+`IMAGE_BASE_URL` before sending them to the frontend — see
 `src/utils/imageUrl.ts`.
 
 ---
@@ -46,18 +97,18 @@ It's already written for you in this folder. The important bits:
 ```yaml
 services:
   postgres:
-    image: postgres:16-alpine       # what to run
+    image: postgres:16-alpine # what to run
     environment:
-      POSTGRES_USER: portfolio      # \_ these three become your
-      POSTGRES_PASSWORD: portfolio  # /  connection string below
+      POSTGRES_USER: portfolio # \_ these three become your
+      POSTGRES_PASSWORD: portfolio # /  connection string below
       POSTGRES_DB: portfolio
     ports:
-      - "5432:5432"                 # host_port:container_port
+      - "5432:5432" # host_port:container_port
     volumes:
-      - portfolio_pgdata:/var/lib/postgresql/data   # persists data
+      - portfolio_pgdata:/var/lib/postgresql/data # persists data
 ```
 
-`ports: "5432:5432"` means "the Postgres running *inside* the container on
+`ports: "5432:5432"` means "the Postgres running _inside_ the container on
 port 5432 is reachable from your own machine (localhost) on port 5432
 too." The `volumes` line means your data survives even if you stop/remove
 the container — it's stored in a named Docker volume, not inside the
@@ -212,17 +263,17 @@ This backend now has several layers of protection, mostly focused on the
 `sendMessage` (contact form) mutation, since it's the only public write
 path:
 
-| Layer | What it does | Where |
-|---|---|---|
-| Helmet | Security headers (hides `X-Powered-By`, sets HSTS, etc.) | `src/index.ts` |
-| CORS whitelist | Only origins in `ALLOWED_ORIGINS`/`CORS_ORIGIN` can call the API | `src/index.ts` |
-| Route-level rate limit | 300 req / 15 min per IP on `/graphql` overall | `src/index.ts` |
-| Contact-specific rate limit | 5 submissions / hour per IP, since GraphQL has one route for everything | `src/security/contactRateLimit.ts` |
-| Zod validation | Rejects malformed/oversized name, email, message | `src/security/validation.ts` |
-| Honeypot field | Hidden `company` field - if filled, silently treated as spam | `src/graphql/resolvers.ts` |
-| reCAPTCHA v3 | Invisible bot-score check (skipped with a warning if `RECAPTCHA_SECRET` isn't set) | `src/security/recaptcha.ts` |
-| CSRF-style token | Stateless, signed, short-lived token from `GET /csrf-token` required on every submission | `src/security/csrf.ts` |
-| GraphQL hardening | Introspection off in production, query depth capped at 8, body size capped at 100kb | `src/index.ts` |
+| Layer                       | What it does                                                                             | Where                              |
+| --------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------- |
+| Helmet                      | Security headers (hides `X-Powered-By`, sets HSTS, etc.)                                 | `src/index.ts`                     |
+| CORS whitelist              | Only origins in `ALLOWED_ORIGINS`/`CORS_ORIGIN` can call the API                         | `src/index.ts`                     |
+| Route-level rate limit      | 300 req / 15 min per IP on `/graphql` overall                                            | `src/index.ts`                     |
+| Contact-specific rate limit | 5 submissions / hour per IP, since GraphQL has one route for everything                  | `src/security/contactRateLimit.ts` |
+| Zod validation              | Rejects malformed/oversized name, email, message                                         | `src/security/validation.ts`       |
+| Honeypot field              | Hidden `company` field - if filled, silently treated as spam                             | `src/graphql/resolvers.ts`         |
+| reCAPTCHA v3                | Invisible bot-score check (skipped with a warning if `RECAPTCHA_SECRET` isn't set)       | `src/security/recaptcha.ts`        |
+| CSRF-style token            | Stateless, signed, short-lived token from `GET /csrf-token` required on every submission | `src/security/csrf.ts`             |
+| GraphQL hardening           | Introspection off in production, query depth capped at 8, body size capped at 100kb      | `src/index.ts`                     |
 
 **What your frontend needs to change** for the contact form to keep working:
 
@@ -234,13 +285,15 @@ path:
 
 ```graphql
 mutation {
-  sendMessage(input: {
-    name: "...",
-    email: "...",
-    message: "...",
-    csrfToken: "...",
-    recaptchaToken: "..."
-  }) {
+  sendMessage(
+    input: {
+      name: "..."
+      email: "..."
+      message: "..."
+      csrfToken: "..."
+      recaptchaToken: "..."
+    }
+  ) {
     success
     message
   }
@@ -255,6 +308,69 @@ mutation {
 If you skip steps 1–2, `sendMessage` will reject with `FORBIDDEN` (missing/
 expired CSRF token) or a bot-verification error — that's expected, it means
 the checks are working.
+
+## Deploying to Cloud Run
+
+This backend is set up to build and deploy as a container on **Google Cloud
+Run**, with Postgres hosted externally (e.g. [Neon](https://neon.tech)).
+
+### One-time setup
+
+1. Create a Postgres database with your provider of choice and grab its
+   connection string.
+2. Store secrets in **Secret Manager** rather than a plaintext env file:
+   ```bash
+   echo -n "postgresql://user:password@host/dbname?sslmode=require" | \
+     gcloud secrets create database-url --data-file=-
+   ```
+   Repeat for any other secret values (`csrf-secret`, `recaptcha-secret`,
+   etc.) instead of committing them to `cloud-run-env.yaml`.
+
+### Deploy
+
+`cloudbuild.yaml` builds the Docker image, pushes it to Artifact Registry,
+and deploys it to Cloud Run:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
+
+The first deploy also needs the non-secret env vars and secret references
+attached to the service:
+
+```bash
+gcloud run deploy memory-vault-backend \
+  --image=us-central1-docker.pkg.dev/<PROJECT_ID>/cloud-run-source-deploy/memory-vault-backend \
+  --region=us-central1 \
+  --set-env-vars="NODE_ENV=production,IMAGE_BASE_URL=<your-bucket-url>,CONTACT_TO_EMAIL=<your-email>,^;^ALLOWED_ORIGINS=<origin1>,<origin2>" \
+  --set-secrets="DATABASE_URL=database-url:latest,CSRF_SECRET=csrf-secret:latest"
+```
+
+(`^;^` before `ALLOWED_ORIGINS` tells gcloud to split env-var pairs on `;`
+instead of `,`, since the value itself contains commas.)
+
+### Updating env vars or secrets later
+
+```bash
+# Update a plain env var:
+gcloud run services update memory-vault-backend \
+  --region=us-central1 \
+  --update-env-vars="^;^ALLOWED_ORIGINS=<origin1>,<origin2>"
+
+# Rotate a secret (e.g. after changing the DB password):
+echo -n "postgresql://user:new-password@host/dbname?sslmode=require" | \
+  gcloud secrets versions add database-url --data-file=-
+# Cloud Run picks up :latest on the next revision — redeploy to pick it up:
+gcloud run services update memory-vault-backend --region=us-central1
+```
+
+Check the live config anytime with:
+
+```bash
+gcloud run services describe memory-vault-backend \
+  --region=us-central1 \
+  --format="value(spec.template.spec.containers[0].env)"
+```
 
 ## Project layout
 

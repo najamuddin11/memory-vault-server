@@ -29,10 +29,6 @@ async function main() {
   for (const statement of statements) {
     await prisma.$executeRawUnsafe(statement);
   }
-
-  console.log(
-    `Seeded database with ${statements.length} statements from sql/seed.sql`,
-  );
 }
 
 main()
