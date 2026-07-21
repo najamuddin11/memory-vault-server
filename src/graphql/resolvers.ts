@@ -37,8 +37,9 @@ function serializePortfolio(p: {
   };
 }
 
-async function getPortfolioData() {
+async function getPortfolioData(options?: { featuredOnly?: boolean }) {
   const rows = await prisma.portfolio.findMany({
+    where: options?.featuredOnly ? { featured: true } : undefined,
     orderBy: { order: "asc" },
     include: { carousel: { orderBy: { order: "asc" } } },
   });
@@ -60,7 +61,7 @@ export const resolvers = {
       ] = await Promise.all([
         prisma.intro.findMany({}),
         prisma.service.findMany({ orderBy: { order: "asc" } }),
-        getPortfolioData(),
+        getPortfolioData({ featuredOnly: true }),
         prisma.workExperience.findMany({ orderBy: { order: "asc" } }),
         prisma.testimonial.findMany({ orderBy: { order: "asc" } }),
         prisma.education.findMany({ orderBy: { order: "asc" } }),
